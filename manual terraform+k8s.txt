@@ -1,0 +1,37 @@
+#master node configuration
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
+
+sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable"
+
+curl -s https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo apt-key add -
+
+cat << EOF | sudo tee /etc/apt/sources.list.d/kubernetes.list
+deb https://apt.kubernetes.io/ kubernetes-xenial main
+EOF
+
+sudo swapoff -a  
+
+sudo apt-get update
+
+sudo apt-get install -y docker-ce=5:20.10.7~3-0~ubuntu-$(lsb_release -cs) kubelet=1.21.1-00 kubeadm=1.21.1-00 kubectl=1.21.1-00
+
+sudo apt-mark hold docker-ce kubelet kubeadm kubectl
+
+echo "net.bridge.bridge-nf-call-iptables=1" | sudo tee -a /etc/sysctl.conf
+
+sudo sysctl -p
+
+sudo kubeadm init --pod-network-cidr=192.168.0.0/16
+#after init stage copy connection string for future connections!!!
+
+mkdir -p $HOME/.kube
+sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+sudo chown $(id -u):$(id -g) $HOME/.kube/config
+
+kubectl apply -f https://docs.projectcalico.org/manifests/calico.yaml
+
+kubectl apply -f https://raw.githubusercontent.com/kubernetes/dashboard/v2.0.0/aio/deploy/recommended.yaml
+
+kubeadm join 10.129.0.31:6443 --token tf2tb6.utvrd9sdb821tht9 \
+        --discovery-token-ca-cert-hash sha256:340ccf7115cfc0bb7e46f10e79cfbe398e1cee73063139997ef973eed71e6ae6
+
